@@ -1,0 +1,67 @@
+#*************************************************
+# 賭け事_ﾘｽﾄ_2_所持金の対数の分布関数
+#*************************************************
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+%matplotlib inline
+
+# 所持金の対数の分布関数
+# 0 ≦ y0
+# 1 ≦ X  ≦ n
+# 0 ≦ b  ≦ 1
+def f_GetLnShojikin(y0, b, n, xlist):
+    alpha = np.log((1.0 + b) / (1.0 - b))
+    beta = np.log(y0) + n * np.log(1.0 - b)
+    lnylist = []
+    for x in xlist:
+        lny = alpha * x + beta
+        lnylist.append( lny )
+    return alpha, beta, lnylist
+
+# データとグリッド
+y0 = 1000   # 初期の所持金
+xn = 60     # 賭け回数
+xlist = []
+lnylist0 = []
+lny0 = np.log(y0)
+for ii in range(xn+1):
+    xlist.append(ii)
+    lnylist0.append(lny0)
+
+# 所持金の分布
+label0 = 'y0={0}'.format(y0)
+
+b1 = 0.05      # 賭け金のその時点の所持金に対する割合
+label1 = 'b={0}'.format(b1)
+alpha, beta, lnylist1 = f_GetLnShojikin(y0, b1, xn, xlist)
+betaMin = beta
+
+b2 = 0.1       # 賭け金のその時点の所持金に対する割合
+label2 = 'b={0}'.format(b2)
+alpha, beta, lnylist2 = f_GetLnShojikin(y0, b2, xn, xlist)
+if betaMin > beta:
+    betaMin = beta
+
+b3 = 0.2       # 賭け金のその時点の所持金に対する割合
+label3 = 'b={0}'.format(b3)
+alpha, beta, lnylist3 = f_GetLnShojikin(y0, b3, xn, xlist)
+if betaMin > beta:
+    betaMin = beta
+
+# グラフ描画
+xlabel = '$x (success/{0})$'.format(xn)
+ylabel = '$ln(y(x))$'
+
+plt.figure(figsize=(8,4))
+plt.plot( xlist, lnylist0, 'k:', linewidth=1, label=label0 )
+plt.plot( xlist, lnylist1, 'r:', linewidth=2, label=label1 )
+plt.plot( xlist, lnylist2, 'b:', linewidth=2, label=label2 )
+plt.plot( xlist, lnylist3, 'g-.', linewidth=2, label=label3 )
+plt.legend(loc='upper left')
+plt.ylim(betaMin, 3*lny0)
+plt.xlim(-0.5, xn)
+plt.xlabel(xlabel)
+plt.ylabel(ylabel)
+plt.grid(True)
+plt.show()
