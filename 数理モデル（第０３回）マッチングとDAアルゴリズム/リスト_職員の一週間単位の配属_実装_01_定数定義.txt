@@ -124,8 +124,10 @@ def ConvDeptQualIdToName(qualId):
 #   deptName：配属先配属先名
 #*************************************************************************
 def ConvDeptIdToName(deptId):
-  if( deptId == DEPT_ID_0 ) :
-    deptName = "休み"
+  if( deptId == DEPT_ID_X ) :
+    deptName = "休み(申請休)"
+  elif( deptId == DEPT_ID_0 ) :
+    deptName = "休み(申請以外)"
   elif( deptId == DEPT_ID_1 ) :
     deptName = "早番"
   elif( deptId == DEPT_ID_2 ) :

@@ -88,20 +88,20 @@ def LoadDayAsignList(filePath) :
 def LoadStaffInfoList(filePath) :
 
   staffInfoList = [
-    StaffInfo("A", "êEàıÇ`", [QUAL_STAFF_1],              4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["1","2","3","/","-","-","-"]),
-    StaffInfo("B", "êEàıÇa", [QUAL_STAFF_1,QUAL_STAFF_2], 4, [DEPT_ID_1,DEPT_ID_3,DEPT_ID_2], ["-","X","-","-","-","-","X"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("C", "êEàıÇb", [],                          5, [DEPT_ID_2,DEPT_ID_3,DEPT_ID_1], ["X","-","-","-","-","-","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("D", "êEàıÇc", [QUAL_STAFF_2],              3, [DEPT_ID_2,DEPT_ID_1],           ["X","X","-","-","X","-","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("E", "êEàıÇd", [ ],                         4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("F", "êEàıÇe", [QUAL_STAFF_1],              5, [DEPT_ID_3,DEPT_ID_1,DEPT_ID_2], ["-","-","-","-","-","-","X"], ["-","-","-","1","2","3","/"]),
-    StaffInfo("G", "êEàıÇf", [QUAL_STAFF_1],              3, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","X","X","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("H", "êEàıÇg", [QUAL_STAFF_2,QUAL_STAFF_3], 4, [DEPT_ID_1,DEPT_ID_3,DEPT_ID_2], ["-","-","-","-","-","-","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("I", "êEàıÇh", [],                          5, [DEPT_ID_2,DEPT_ID_3,DEPT_ID_1], ["X","-","-","-","-","-","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("J", "êEàıÇi", [QUAL_STAFF_2],              4, [DEPT_ID_2,DEPT_ID_1],           ["-","-","-","-","-","-","X"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("K", "êEàıÇj", [],                          4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["X","-","-","-","X","X","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("L", "êEàıÇk", [QUAL_STAFF_1],              5, [DEPT_ID_3,DEPT_ID_1,DEPT_ID_2], ["X","-","-","-","-","-","-"], ["-","-","-","-","-","-","-"]),
-    StaffInfo("M", "êEàıÇl", [QUAL_STAFF_2],              4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["/","-","-","-","1","2","3"]),
-    StaffInfo("N", "êEàıÇm", [],                          4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["3","/","2","1","-","-","-"]),
-    StaffInfo("O", "êEàıÇn", [],                          4, [DEPT_ID_1,DEPT_ID_2],           ["X","-","-","-","-","-","-"], ["-","-","-","-","-","-","-"]) ]
+    StaffInfo("A", "êEàıÇ`", [QUAL_STAFF_1],              4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["1","2","3","/","-","-","-"] ),
+    StaffInfo("B", "êEàıÇa", [QUAL_STAFF_1,QUAL_STAFF_2], 4, [DEPT_ID_1,DEPT_ID_3,DEPT_ID_2], ["-","X","-","-","-","-","X"], None ),
+    StaffInfo("C", "êEàıÇb", [],                          5, [DEPT_ID_2,DEPT_ID_3,DEPT_ID_1], ["X","-","-","-","-","-","-"], None ),
+    StaffInfo("D", "êEàıÇc", [QUAL_STAFF_2],              3, [DEPT_ID_2,DEPT_ID_1],           ["X","X","-","-","X","-","-"], None ),
+    StaffInfo("E", "êEàıÇd", [ ],                         4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], None ),
+    StaffInfo("F", "êEàıÇe", [QUAL_STAFF_1],              5, [DEPT_ID_3,DEPT_ID_1,DEPT_ID_2], ["-","-","-","-","-","-","X"], ["-","-","-","1","2","3","/"] ),
+    StaffInfo("G", "êEàıÇf", [QUAL_STAFF_1],              3, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","X","X","-"], None ),
+    StaffInfo("H", "êEàıÇg", [QUAL_STAFF_2,QUAL_STAFF_3], 4, [DEPT_ID_1,DEPT_ID_3,DEPT_ID_2], ["-","-","-","-","-","-","-"], None ),
+    StaffInfo("I", "êEàıÇh", [],                          5, [DEPT_ID_2,DEPT_ID_3,DEPT_ID_1], ["X","-","-","-","-","-","-"], None ),
+    StaffInfo("J", "êEàıÇi", [QUAL_STAFF_2],              4, [DEPT_ID_2,DEPT_ID_1],           ["-","-","-","-","-","-","X"], None ),
+    StaffInfo("K", "êEàıÇj", [],                          4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["X","-","-","-","X","X","-"], None ),
+    StaffInfo("L", "êEàıÇk", [QUAL_STAFF_1],              5, [DEPT_ID_3,DEPT_ID_1,DEPT_ID_2], ["X","-","-","-","-","-","-"], None ),
+    StaffInfo("M", "êEàıÇl", [QUAL_STAFF_2],              4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["/","-","-","-","1","2","3"] ),
+    StaffInfo("N", "êEàıÇm", [],                          4, [DEPT_ID_2,DEPT_ID_1,DEPT_ID_3], ["-","-","-","-","-","-","-"], ["3","/","2","1","-","-","-"] ),
+    StaffInfo("O", "êEàıÇn", [],                          4, [DEPT_ID_1,DEPT_ID_2],           ["X","-","-","-","-","-","-"], None ) ]
   return staffInfoList
 
