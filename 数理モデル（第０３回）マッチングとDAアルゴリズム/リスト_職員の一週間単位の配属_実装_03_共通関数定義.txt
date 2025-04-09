@@ -1,0 +1,684 @@
+#*************************************************************************
+# ﾘｽﾄ_職員の一週間単位の配属 (part03)
+#-------------------------------------------------------------------------
+# 共通関数定義
+#
+#*************************************************************************
+
+#*************************************************************************
+# 共通メソッド : GetIndexOnArray
+# 配列で指定した値が登録されていれば、その先頭の添え字を返す。
+# 登録されていなければ -1 を返す
+#-------------------------------------------------------------------------
+# 引数：
+#   array  ：検査する配列
+#   value  ：一致確認する配列の要素値
+#-------------------------------------------------------------------------
+# 戻り値：
+#   retii  ：配列上で値の一致が確認できた先頭要素の添え字（一致しなければ -1）
+#*************************************************************************
+def GetIndexOnArray(array, value):
+  retii = -1
+  refii = -1
+  for aElm in array :
+    refii = refii + 1
+    if ( aElm == value ) :
+      retii = refii
+      break
+  return retii
+
+
+#*************************************************************************
+# メソッド : GetDeptFromDayIDandDeptID
+#   引数で指定した曜日ID（DAY_*）と配属先ID（DEPT_ID_*）から
+#   対応する「配属先」を取得する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   dayId        ：曜日ID（DAY_*）
+#   deptId       ：配属先ID (DEPT_ID_*)
+#-------------------------------------------------------------------------
+# 戻り値：
+#   aDept        ：指定した曜日ID と配属先ID に対応する「配属先情報」オブジェクト（DeptInfo）
+#*************************************************************************
+def GetDeptFromDayIDandDeptID( dayAsignList, dayId, deptId ) :
+
+  # 指定曜日の配属情報を取得
+  aDayAsign = dayAsignList[dayId]
+  for aDept in aDayAsign.deptInfoList :
+    if ( aDept.deptId == deptId ) :
+      return aDept
+
+  # 該当する配属先が無い場合、None を返す
+  return None
+
+
+#*************************************************************************
+# メソッド : PrintDayAsignList
+# 「配属予定表」を印字する
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def PrintDayAsignList(dayAsignList) :
+
+  print("=================================================")
+  print("= 配属先一覧")
+  print("=================================================")
+  for dayAsign in dayAsignList:
+    dayAsign.printObj()
+
+
+#*************************************************************************
+# メソッド : PrintStaffInfoList
+# 職員一覧を印字する
+#-------------------------------------------------------------------------
+# 引数：
+#   staffInfoList：職員オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def PrintStaffInfoList(staffInfoList) :
+
+  print("=================================================")
+  print("= 職員一覧")
+  print("=================================================")
+  for staff in staffInfoList:
+    staff.printObj()
+
+
+#*************************************************************************
+# メソッド : UpdateStaffRate
+#   指定した職員の「勤務日充足率」「希望達成率」を更新する。
+#-------------------------------------------------------------------------
+# 引数：
+#   aStaff：更新対象の職員（StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def UpdateStaffRate( aStaff ) :
+
+  reqFitRate = 0.0
+  asgnDays = 0
+  reqDeptLen = len(aStaff.reqDeptList)  # 配属先希望順の登録数
+  if ( reqDeptLen > 0 ) :
+    for deptId in aStaff.asgnDayList :
+      asgnDept = None
+
+      # "休み" 以外で更新
+      if ( (deptId != DEPT_ID_0) and (deptId != DEPT_ID_X)) :
+        asgnDays = asgnDays + 1
+
+        # "夜勤明け" は "夜勤" での希望相当
+        asgnDept = deptId
+        if (deptId == DEPT_ID_4) :
+          asgnDept = DEPT_ID_3
+
+        # 配属先希望達成率を累積
+        asgnIndex = GetIndexOnArray(aStaff.reqDeptList, asgnDept)
+        reqFitRate = reqFitRate + (reqDeptLen - asgnIndex) / reqDeptLen
+
+  # 勤務日充足率・希望達成率を更新
+  if ( aStaff.workDayAWeek > 0 ):
+    aStaff.reqFitRate = reqFitRate / aStaff.workDayAWeek
+    aStaff.dayFillRate = asgnDays / aStaff.workDayAWeek
+
+
+#*************************************************************************
+# メソッド : UpdateDeptFillRate
+#   指定した配属先の「定員充足率」と
+#   必要資格毎の「資格所有者定員充足率」を更新する。
+#-------------------------------------------------------------------------
+# 引数：
+#   aDept：更新対象の配属先（DeptInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def UpdateDeptFillRate( aDept ) :
+
+  if( aDept.capaMin > 0 ) :
+    asgnNo = 0
+    for qi in aDept.qualInfoList:
+      asgnNo = asgnNo + len(qi.staffList)
+
+      # 資格所有者定員充足率
+      if ( qi.reqCapaMin > 0 ) :
+        qi.reqCapaRate = len(qi.staffList) / qi.reqCapaMin
+
+    aDept.fillRate = asgnNo / aDept.capaMin
+  else :
+    aDept.fillRate = 0.0
+
+
+#*************************************************************************
+# メソッド : SetDeptReqRate
+#   職員の「配属先希望順」等で、配属先毎の「配属先毎配属希望率」を設定
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def SetDeptReqRate( dayAsignList, staffInfoList ) :
+  # 職員総数
+  staffTotalNo = len(staffInfoList)
+
+  # 曜日毎の繰り返し⇒「曜日Ｗ」
+  for aDayAsgn in dayAsignList:
+    dayId = aDayAsgn.dayId
+
+    # 配属先毎の繰り返し⇒「配属先Ｘ」
+    for aDept in aDayAsgn.deptInfoList :
+      deptId = aDept.deptId
+
+      # 全ての職員について繰り返し
+      for aStaff in staffInfoList:
+
+        # 配属先希望順の登録数
+        reqDeptLen = len(aStaff.reqDeptList)
+        if ( reqDeptLen == 0 ) :
+          continue
+
+        # 職員は勤務不可日？
+        if ( aStaff.reqDayList[dayId] == AVAIL_X ) :
+          continue
+
+        # 職員の配属先希望達成率を算出
+        asgnIndex = GetIndexOnArray(aStaff.reqDeptList, deptId)
+        reqFitRate = (reqDeptLen - asgnIndex) / reqDeptLen
+
+        # 配属先希望達成率を累積して「配属先毎配属希望率」を算出
+        aDept.deptReqRate = aDept.deptReqRate + (reqFitRate / staffTotalNo)
+
+
+#*************************************************************************
+# メソッド : SetQualReqRate
+#   職員の「配属先希望順」と「所有資格一覧」等で、
+#   配属先の「必要資格」毎の「必要資格毎配属希望率」を設定する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def SetQualReqRate( dayAsignList, staffInfoList ) :
+  # 職員総数
+  staffTotalNo = len(staffInfoList)
+
+  # 曜日毎の繰り返し⇒「曜日Ｗ」
+  for aDayAsgn in dayAsignList:
+    dayId = aDayAsgn.dayId
+
+    # 配属先毎の繰り返し⇒「配属先Ｘ」
+    for aDept in aDayAsgn.deptInfoList :
+      deptId = aDept.deptId
+
+      # 必要資格毎の繰り返し⇒「必要資格Ｙ」
+      for aDeptQual in aDept.qualInfoList:
+        aDeptQual.qualReqRate = 0.0
+        aDeptQualId = aDeptQual.qualId
+
+        # 全ての職員について繰り返し
+        for aStaff in staffInfoList:
+
+          # 配属先希望順の登録数
+          reqDeptLen = len(aStaff.reqDeptList)
+          if ( reqDeptLen == 0 ) :
+            continue
+
+          # 職員は勤務不可日？
+          if ( aStaff.reqDayList[dayId] == AVAIL_X ) :
+            continue
+
+          # 職員の「所有資格」が配属先の「必要資格Ｙ」を満たしている？
+          qualOK = False
+          if (aDeptQualId == QUAL_DEPT_1_2) :
+            for aStaffDeptQual in aStaff.deptQualList :
+              if (aStaffDeptQual == aDeptQualId) :
+                qualOK = True
+                break
+          elif (aDeptQualId == QUAL_DEPT_0):
+            if (len(aStaff.deptQualList) == 0):
+              qualOK = True
+
+          if ( qualOK == False ) :
+              continue
+
+          # 職員の配属先希望達成率を算出
+          asgnIndex = GetIndexOnArray(aStaff.reqDeptList, deptId)
+          reqFitRate = (reqDeptLen - asgnIndex) / reqDeptLen
+
+          # 配属先希望達成率を累積して「必要資格毎配属希望率」を算出
+          aDeptQual.qualReqRate = aDeptQual.qualReqRate + (reqFitRate / staffTotalNo)
+
+
+#*************************************************************************
+# メソッド : SetStaffAsgnDayListToDeptStaffList
+# 職員の「曜日毎配属表」で、配属先の「配属職員一覧」を設定する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   なし
+#*************************************************************************
+def SetStaffAsgnDayListToDeptStaffList( dayAsignList, staffInfoList ) :
+
+  # 職員についての繰り返し
+  for aStaff in staffInfoList:
+
+    #「曜日毎配属表」の曜日ごとの繰り返し
+    if ( aStaff.asgnDayList != None ) :
+
+      # 曜日毎の繰り返し⇒「曜日Ｗ」
+      for aDayAsgn in dayAsignList:
+        dayId = aDayAsgn.dayId
+
+        #「曜日毎配属表」に既登録の配属先指定が無い場合、
+        #「曜日毎希望表」で「勤務不可日」の場合、「休み(申請休)」とする
+        if ( aStaff.asgnDayList[dayId] == DEPT_ID_0 ) :
+          if ( aStaff.reqDayList[dayId] == AVAIL_X ) :
+            aStaff.asgnDayList[dayId] = DEPT_ID_X
+
+        #「曜日毎配属表」に既登録の配属先指定がある場合
+        else :
+          # 曜日IDと配属先IDから対応する「配属先」を取得
+          aDept = GetDeptFromDayIDandDeptID( dayAsignList, dayId, aStaff.asgnDayList[dayId] )
+          if ( aDept != None ) :
+            #Debug
+            #aDept.printObj()
+            #End Debug
+
+            # 配属先の「配属職員一覧」に登録
+            RegistStaffToDeptStaffList( aStaff, aDept )
+
+            # 配属先の「定員充足率」と必要資格毎の「資格所有者定員充足率」を更新
+            UpdateDeptFillRate( aDept )
+
+
+    # 職員の「勤務日充足率」「希望達成率」を更新
+    UpdateStaffRate( aStaff )
+
+
+#*************************************************************************
+# メソッド : SetDeptInfoWithStaffInfo
+# 職員情報で配属先情報を設定する
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   なし
+#*************************************************************************
+def SetDeptInfoWithStaffInfo( dayAsignList, staffInfoList ) :
+
+  # 職員の「配属先希望順」等で、配属先毎の「配属先毎配属希望率」を設定
+  SetDeptReqRate( dayAsignList, staffInfoList )
+
+  # 職員の「配属先希望順」と「所有資格一覧」等で、
+  # 配属先の「必要資格」毎の「必要資格毎配属希望率」を設定
+  SetQualReqRate( dayAsignList, staffInfoList )
+
+  # 職員の「曜日毎配属表」で、配属先の「配属職員一覧」を設定
+  SetStaffAsgnDayListToDeptStaffList( dayAsignList, staffInfoList )
+
+
+#*************************************************************************
+# メソッド : IsAvailableStaff
+#   引数で指定した職員が、
+#   引数で指定した曜日「曜日Ｗ」の配属先「配属先Ｘ」の必要資格「必要資格Ｙ」
+#   を持った職員として配属するのに、以下の配属条件を満たすか判定する。
+#
+#   【配属条件】
+# 　　　・「配属先Ｘ」が「配属先希望順」リストにある
+# 　　　・「曜日Ｗ」に配属済みでない
+# 　　　・「曜日Ｗ」が「勤務不可日」でない
+# 　　　・「配属先Ｘ」が二日に渡る勤務の場合、「曜日Ｗ」の次の曜日に配属済みでない
+# 　　　・「配属先Ｘ」が二日に渡る勤務の場合、「曜日Ｗ」の次の曜日が「勤務不可日」でない
+# 　　　・「必要資格Ｙ」を「所有資格」が満たしている
+# 　　　・仮に配属された場合、（夜勤明けも含めて）「週の勤務日数」の範囲である
+#
+#-------------------------------------------------------------------------
+# 引数：
+#   aStaff       ：職員オブジェクト（StaffInfo）
+#   dayId        ：曜日ID（DAY_*）
+#   deptId       ：配属先ID (DEPT_ID_*)
+#   ocupyDays    ：配属先の一勤務当たりの勤務日数
+#   aDeptQualId  ：配属先の必要資格ID（QUAL_DEPT_*、必要資格無関係の場合は None）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   isAvalilable ＝ True:配属条件を満たす、False:配属条件を満たさない
+#*************************************************************************
+def IsAvailableStaff(aStaff, dayId, deptId, ocupyDays, aDeptQualId ) :
+  isAvalilable = True
+
+  # 「配属先Ｘ」が「配属先希望順」リストにある
+  if( isAvalilable == True ) :
+    deptIndex = GetIndexOnArray(aStaff.reqDeptList, deptId)
+    if (deptIndex == -1) :
+      isAvalilable = False
+
+  #「曜日Ｗ」に配属済みでない？
+  if( isAvalilable == True ) :
+    if (aStaff.asgnDayList[dayId] != DEPT_ID_0) :
+      isAvalilable = False
+
+  #「曜日Ｗ」が「勤務不可日」でない？
+  if( isAvalilable == True ) :
+    if (aStaff.reqDayList[dayId] == AVAIL_X) :
+      isAvalilable = False
+
+  # １勤務が２日に渡る配属先？
+  if( isAvalilable == True ) :
+    if (ocupyDays > 1) :
+
+      #「曜日Ｗ」の翌日に配属済みでない？
+      if (dayId + 1 < len(aStaff.asgnDayList) ):
+        if( aStaff.asgnDayList[dayId + 1] != DEPT_ID_0) :
+          isAvalilable = False
+      else:
+        if( aStaff.asgnDayList[0] != DEPT_ID_0) :
+          isAvalilable = False
+
+      #「曜日Ｗ」の翌日が「勤務不可日」でない？
+      if (dayId + 1 < len(aStaff.reqDayList) ):
+        if( aStaff.reqDayList[dayId + 1] == AVAIL_X) :
+          isAvalilable = False
+      else:
+        if( aStaff.reqDayList[0] == AVAIL_X) :
+          isAvalilable = False
+
+  #「必要資格Ｙ」を職員の「適合資格」が満たしている？
+  if( isAvalilable == True ) :
+    qualOK = False
+    if (aDeptQualId is None):
+      qualOK = True
+    elif (aDeptQualId == QUAL_DEPT_1_2) :
+      for aStaffDeptQual in aStaff.deptQualList :
+        if (aStaffDeptQual == aDeptQualId) :
+          qualOK = True
+          break
+    elif (aDeptQualId == QUAL_DEPT_0):
+      if (len(aStaff.deptQualList) == 0):
+        qualOK = True
+
+    if (qualOK == False) :
+      isAvalilable = False
+
+  # 仮に配属された場合、「週の勤務日数」の範囲である
+  if( isAvalilable == True ) :
+    asgnDayTotal = len(aStaff.asgnDayList)  \
+      - aStaff.asgnDayList.count(DEPT_ID_0) \
+      - aStaff.asgnDayList.count(DEPT_ID_X)
+    asgnDayTotal += ocupyDays
+    if (aStaff.workDayAWeek < asgnDayTotal) :
+      isAvalilable = False
+
+  return isAvalilable
+
+
+#*************************************************************************
+# メソッド : ExtractBestStaff
+#   引数で指定した曜日「曜日Ｗ」の配属先「配属先Ｘ」へ必要資格「必要資格Ｙ」
+#   を持った職員として配属するのに、以下の条件を満たす職員を、最適職員として抽出する。
+#
+#   【条件】
+# 　　　・「曜日Ｗ」に配属済みでない
+# 　　　・「曜日Ｗ」が「勤務不可日」でない
+# 　　　・「配属先Ｘ」が二日に渡る勤務の場合、「曜日Ｗ」の次の曜日に配属済みでない
+# 　　　・「配属先Ｘ」が二日に渡る勤務の場合、「曜日Ｗ」の次の曜日が「勤務不可日」でない
+# 　　　・「必要資格Ｙ」を「所有資格」が満たしている
+# 　　　・仮に配属された場合、（夜勤明けも含めて）「週の勤務日数」の範囲である
+# 　　　・上記条件を満たす職員の中で、「配属先Ｘ」が「配属先希望順」で最上位である
+# 　　　・上記条件を満たす職員候補の中で、「希望達成率」が最も低い職員である
+#
+#-------------------------------------------------------------------------
+# 引数：
+#   staffInfoList：職員オブジェクト配列（配列要素は StaffInfo）
+#   dayId        ：曜日ID（DAY_*）
+#   deptId       ：配属先ID (DEPT_ID_*)
+#   ocupyDays    ：配属先の一勤務当たりの勤務日数
+#   aDeptQualId  ：配属先の必要資格ID（QUAL_DEPT_*、必要資格無関係の場合は None）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   bestStaff    ：配属するのに最適な職員 (StaffInfo)
+#*************************************************************************
+def ExtractBestStaff(staffInfoList, dayId, deptId, ocupyDays, aDeptQualId ) :
+
+  # 職員オブジェクト配列から、配属候補を抽出
+  candList = []     # 候補職員のリスト
+  bStaff = None
+  for aStaff in staffInfoList:
+    staffId = aStaff.staffId
+    staffName = aStaff.staffName
+    workDayAWeek = aStaff.workDayAWeek
+
+    # 配属条件を満たす職員か
+    if ( IsAvailableStaff(
+         aStaff, dayId, deptId, ocupyDays, aDeptQualId ) == True ):
+
+      # 配属条件を満たす職員の中で、「配属先Ｘ」が「配属先希望順」で最上位の候補を列挙
+      deptIndex = GetIndexOnArray(aStaff.reqDeptList, deptId)
+      if (deptIndex != -1) :
+        if (bStaff == None) :
+          bStaff = BestStaffInfo(aStaff, deptIndex)
+          candList.append( aStaff )
+
+        elif (deptIndex == bStaff.deptIndex) :
+          candList.append( aStaff )
+
+        elif (deptIndex < bStaff.deptIndex) :
+          bStaff = BestStaffInfo(aStaff, deptIndex)
+          candList = []
+          candList.append( aStaff )
+
+  # 配属候補から「希望達成率」が最も低い職員を配属させる
+  bestStaff = None
+  reqFitRate = 1.0
+  for aStaff in candList:
+    if (bestStaff == None) or (reqFitRate >= aStaff.reqFitRate):
+       reqFitRate = aStaff.reqFitRate
+       bestStaff = aStaff
+
+  return bestStaff
+
+
+#*************************************************************************
+# メソッド : ExtractFillOrderDeptList
+#   配属先について、
+# 「定員充足率」が低い順に並べ替えた配列（配列要素は DeptInfo）を取得する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   deptList ：配属先について、定員充足率が低い順に並べ替えた配列（配列要素は DeptInfo）
+#*************************************************************************
+def ExtractFillOrderDeptList( dayAsignList ) :
+  deptList = []
+  deptListLen = 0
+
+  # 曜日毎の繰り返し⇒「曜日Ｗ」
+  for aDayAsgn in dayAsignList:
+    dayId = aDayAsgn.dayId
+
+    #「配属先Ｘ」の定員充足率でソート
+    for aDept in aDayAsgn.deptInfoList:
+      if (deptListLen == 0):
+        deptList.append( aDept )
+        deptListLen = deptListLen + 1
+      else:
+        if (deptList[ deptListLen - 1 ].fillRate <= aDept.fillRate) :
+          deptList.append( aDept )
+          deptListLen = deptListLen + 1
+        elif (deptList[0].fillRate > aDept.fillRate) :
+          deptList.insert(0, aDept)
+          deptListLen = deptListLen + 1
+        else:
+          for ii in range( deptListLen - 1) :
+            if ( (deptList[ii].fillRate <= aDept.fillRate) and
+                 (aDept.fillRate < deptList[ii + 1].fillRate) ) :
+              deptList.insert( ii+1, aDept)
+              deptListLen = deptListLen + 1
+              break
+
+      # Debug Start ==========================
+      #print("({0}: {1}): fillRate={2:.2f}, deptListLen={3}, ".
+      #  format(ConvDayIdToName(dayId), aDept.deptId, aDept.fillRate, deptListLen))
+      # Debug End --==========================
+
+  return deptList
+
+
+#*************************************************************************
+# メソッド : ExtractReqOrderDeptList
+#   配属先について「配属先毎配属希望率」が低い順に並べ替えた配列を取得する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   deptList ：配属先について「配属先毎配属希望率」が低い順に並べ替えた配列（配列要素は DeptInfo）
+#*************************************************************************
+def ExtractReqOrderDeptList( dayAsignList ) :
+  deptList = []
+  deptListLen = 0
+
+  # 曜日毎の繰り返し⇒「曜日Ｗ」
+  for aDayAsgn in dayAsignList:
+    dayId = aDayAsgn.dayId
+
+    # 配属先毎の繰り返し⇒「配属先Ｘ」
+    for aDept in aDayAsgn.deptInfoList :
+      deptId = aDept.deptId
+
+      if (deptListLen == 0):
+        deptList.append( aDept )
+        deptListLen = deptListLen + 1
+      else:
+        if (deptList[ deptListLen - 1 ].deptReqRate <= aDept.deptReqRate) :
+          deptList.append( aDept )
+          deptListLen = deptListLen + 1
+        elif (deptList[0].deptReqRate > aDept.deptReqRate) :
+          deptList.insert(0, aDept)
+          deptListLen = deptListLen + 1
+        else:
+          for ii in range( deptListLen - 1) :
+            if ( (deptList[ii].deptReqRate <= aDept.deptReqRate) and
+                 (aDept.deptReqRate < deptList[ii+1].deptReqRate) ) :
+              deptList.insert( ii+1, aDept )
+              deptListLen = deptListLen + 1
+              break
+
+      # Debug Start ==========================
+      #print("({0}: {1}): deptReqRate={2:.2f}, deptListLen={3}, ".
+      #  format(ConvDayIdToName(dayId), deptId, aDept.deptReqRate, deptListLen))
+      # Debug End --==========================
+
+  return deptList
+
+
+#*************************************************************************
+# メソッド : ExtractReqOrderDeptQualList
+#   配属先の必要資格について「必要資格毎配属希望率」が低い順に並べ替えた配列を取得する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#-------------------------------------------------------------------------
+# 戻り値：
+#   qualList ：配属先の必要資格について「必要資格毎配属希望率」が低い順に並べ替えた配列（配列要素は QualInfo）
+#*************************************************************************
+def ExtractReqOrderDeptQualList( dayAsignList ) :
+  qualList = []
+  qualListLen = 0
+
+  # 曜日毎の繰り返し⇒「曜日Ｗ」
+  for aDayAsgn in dayAsignList:
+    dayId = aDayAsgn.dayId
+
+    # 配属先毎の繰り返し⇒「配属先Ｘ」
+    for aDept in aDayAsgn.deptInfoList :
+      deptId = aDept.deptId
+
+      #「必要資格Ｙ」の「必要資格毎配属希望率」でソート
+      for aDeptQual in aDept.qualInfoList:
+
+        if (qualListLen == 0):
+          qualList.append( aDeptQual )
+          qualListLen = qualListLen + 1
+        else:
+          if (qualList[ qualListLen - 1 ].qualReqRate <= aDeptQual.qualReqRate) :
+            qualList.append( aDeptQual )
+            qualListLen = qualListLen + 1
+          elif (qualList[0].qualReqRate > aDeptQual.qualReqRate) :
+            qualList.insert(0, aDeptQual)
+            qualListLen = qualListLen + 1
+          else:
+            for ii in range( qualListLen - 1) :
+              if ( (qualList[ii].qualReqRate <= aDeptQual.qualReqRate) and
+                   (aDeptQual.qualReqRate < qualList[ii+1].qualReqRate) ) :
+                qualList.insert( ii+1, aDeptQual )
+                qualListLen = qualListLen + 1
+                break
+
+        # Debug Start ==========================
+        #print("({0}: {1}: {2}): qualReqRate={3:.2f}, qualListLen={4}, ".
+        #  format(ConvDayIdToName(dayId), deptId, aDeptQual.qualId, aDeptQual.qualReqRate, qualListLen))
+        # Debug End --==========================
+
+  return qualList
+
+
+#*************************************************************************
+# メソッド : RegistStaffAsgnDayList
+#   指定した「職員」と「配属先」を元に、職員の「曜日毎配属表」に登録
+#-------------------------------------------------------------------------
+# 引数：
+#   staffInfo ：登録する「職員情報」オブジェクト（StaffInfo）
+#   deptInfo  ：登録先の「配属先情報」オブジェクト（DeptInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def RegistStaffAsgnDayList( staffInfo, deptInfo ) :
+
+  # 職員の「曜日毎配属表」に登録
+  staffInfo.asgnDayList[deptInfo.dayId] = deptInfo.deptId
+  if (deptInfo.deptId == DEPT_ID_3) :
+    if (deptInfo.dayId + 1 < len(staffInfo.asgnDayList) ):
+      staffInfo.asgnDayList[deptInfo.dayId + 1] = DEPT_ID_4
+    else:
+      staffInfo.asgnDayList[0] = DEPT_ID_4
+
+
+#*************************************************************************
+# メソッド : RegistStaffToDeptStaffList
+#   指定した「職員」について、
+#   指定した「配属先」の該当する資格を保持する職員として「配属職員一覧」に登録
+#-------------------------------------------------------------------------
+# 引数：
+#   staffInfo ：登録する「職員情報」オブジェクト（StaffInfo）
+#   deptInfo  ：登録先の「配属先情報」オブジェクト（DeptInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def RegistStaffToDeptStaffList( staffInfo, deptInfo ) :
+
+  # 該当する資格を照合する
+  aDeptQualId = QUAL_DEPT_0
+  for aStaffQual in staffInfo.staffQualList :
+    if (aStaffQual == QUAL_STAFF_1) or (aStaffQual == QUAL_STAFF_2) :
+      aDeptQualId = QUAL_DEPT_1_2
+      break
+
+  # 配属先の「配属職員一覧」に登録
+  for aDeptQual in deptInfo.qualInfoList:
+    if (aDeptQual.qualId == aDeptQualId) :
+      aDeptQual.staffList.append(staffInfo)
+      break
+

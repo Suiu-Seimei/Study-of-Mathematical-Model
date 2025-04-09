@@ -1,0 +1,330 @@
+#*************************************************************************
+# ﾘｽﾄ_職員の一週間単位の配属 (part02)
+#-------------------------------------------------------------------------
+# クラス定義
+#
+#*************************************************************************
+
+#*************************************************************************
+# クラス     StaffInfo
+#-------------------------------------------------------------------------
+# 職員情報クラス
+#-------------------------------------------------------------------------
+#
+#*************************************************************************
+class StaffInfo:
+
+  #=======================================================================
+  # StaffInfo クラス : コンストラクタ
+  #-----------------------------------------------------------------------
+  # 以下のインスタンス変数を定義し、指定値で初期化する：
+  #
+  # staffId       ：(PK) 職員ID
+  # staffName     ：職員名称
+  # staffQualList ：所有資格一覧（配列型 [] で QUAL_STAFF_* を保存）
+  # deptQualList  ：配属先の適合資格一覧（配列型 [] で QUAL_DEPT_* を保存）
+  # workDayAWeek  ：週の勤務日数
+  # reqDeptList   ：配属先希望順（配列型 [] で DEPT_ID_* を希望順に保存）
+  # reqDayList    ：曜日毎希望表（配列型 [] で一週間分保存、値：希望勤務状態ID（AVAIL_*））
+  # asgnDayList   ：曜日毎配属表（配列型 [] で一週間分保存、値：配属先ID（DEPT_ID_*）、初期値無しの場合は None）
+  # dayFillRate   ：勤務日充足率（%）
+  # reqFitRate    ：希望達成率（%）
+  #=======================================================================
+  def __init__(self, staffId, staffName,
+    staffQualList, workDayAWeek, reqDeptList, reqDayList, asgnDayList ):
+    self.staffId = staffId
+    self.staffName = staffName
+    self.staffQualList = staffQualList
+    self.workDayAWeek = workDayAWeek
+    self.reqDeptList = reqDeptList
+    self.reqDayList = reqDayList
+    if (asgnDayList == None) :
+      self.asgnDayList = [DEPT_ID_0, DEPT_ID_0, DEPT_ID_0, DEPT_ID_0, DEPT_ID_0, DEPT_ID_0, DEPT_ID_0]
+    else:
+      self.asgnDayList = asgnDayList
+    self.dayFillRate = 0.0
+    self.reqFitRate = 0.0
+
+    #「配属先の適合資格一覧」を「所有資格一覧」から作成
+    self.deptQualList = []
+    qual1or2 = False
+    for aStaffQual in self.staffQualList :
+      if (aStaffQual == QUAL_STAFF_1) or (aStaffQual == QUAL_STAFF_2) :
+        qual1or2 = True
+        break
+
+    if (qual1or2 == True) :
+      self.deptQualList.append( QUAL_DEPT_1_2 )
+
+
+  #=======================================================================
+  # StaffInfo クラス : printObj
+  # StaffInfo インスタンスの内容を印字する（改行しない）
+  #-----------------------------------------------------------------------
+  # 引数：なし
+  #-----------------------------------------------------------------------
+  # 戻り値：なし
+  #=======================================================================
+  def printObj(self):
+    # 職員ID、職員名
+    print("({0}:{1}): ".format(self.staffId, self.staffName), end="")
+
+    # 週当りの勤務日数
+    print(" 週当り勤務日数=({0}) ".format(self.workDayAWeek), end="")
+
+    # reqDayList：曜日毎希望表（配列型 [] で一週間分保存、値：希望勤務状態ID（AVAIL_*））
+    print(" 勤務希望=(", end="")
+    idx = 0
+    for wd in self.reqDayList:
+      if (idx > 0 ):
+        print(",", end="")
+      print("{0}".format(wd), end="")
+      idx = idx + 1
+    print(") ", end="")
+
+    # asgnDayList：曜日毎配属表（配列型 [] で一週間分保存、値：配属先ID（DEPT_ID_*））
+    print(" 勤務予定=(", end="")
+    idx = 0
+    for wd in self.asgnDayList:
+      if (idx > 0 ):
+        print(",", end="")
+      print("{0}".format(wd), end="")
+      idx = idx + 1
+    print(") ", end="")
+
+    # 勤務日充足率
+    print(" 勤務日充足率={0:.2f}".format(self.dayFillRate), end="")
+
+    # 希望達成率
+    print(" 希望達成率={0:.2f}".format(self.reqFitRate), end="")
+
+    # 配属先希望順
+    print(" 配属先希望順=(", end="")
+    idx = 0
+    for ad in self.reqDeptList:
+      if (idx > 0 ):
+        print(",", end="")
+      print("{0}".format(ad), end="")
+      idx = idx + 1
+    print(") ", end="")
+
+    # 所有資格一覧
+    print(" 所有資格=(", end="")
+    if ( len(self.staffQualList) == 0 ):
+      print("なし", end="")
+    else:
+      idx = 0
+      for ql in self.staffQualList:
+        if (idx > 0 ):
+          print(",", end="")
+        print("{0}".format(ConvStaffQualIdToName(ql)), end="")
+        idx = idx + 1
+    print(") ", end="")
+
+    # 適合資格一覧
+    print(" 適合資格=(", end="")
+    if ( len(self.deptQualList) == 0 ):
+      print("なし", end="")
+    else:
+      idx = 0
+      for ql in self.deptQualList:
+        if (idx > 0 ):
+          print(",", end="")
+        print("{0}".format(ConvDeptQualIdToName(ql)), end="")
+        idx = idx + 1
+    print(") ", end="")
+
+    # 改行
+    print("")
+
+
+#*************************************************************************
+# クラス     BestStaffInfo
+#-------------------------------------------------------------------------
+# 最適職員情報クラス
+#-------------------------------------------------------------------------
+#
+#*************************************************************************
+class BestStaffInfo ():
+  #=======================================================================
+  # BestStaffInfo クラス : コンストラクタ
+  #-----------------------------------------------------------------------
+  # 以下のインスタンス変数を定義し、指定値で初期化する：
+  #
+  # staffInfo     ：職員情報インスタンス（StaffInfo）
+  # deptIndex     ：配属先希望順位（配列添え字）
+  #=======================================================================
+  def __init__(self, staffInfo, deptIndex ):
+    self.staffInfo = staffInfo
+    self.deptIndex = deptIndex
+
+#*************************************************************************
+# クラス     QualInfo
+#-------------------------------------------------------------------------
+# 配属先の必要資格のクラス
+#-------------------------------------------------------------------------
+#
+#*************************************************************************
+class QualInfo:
+
+  #***********************************************************************
+  # QualInfo クラス : コンストラクタ
+  #-----------------------------------------------------------------------
+  # 以下のインスタンス変数を定義し、指定値で初期化する：
+  #
+  # dayId          ：(PK) 曜日ID（DAY_*）
+  # deptId         ：(PK) 配属先ID (DEPT_ID_*)
+  # qualId         ：(PK) 配属先の必要資格ID（QUAL_DEPT_*）
+  # parentObj      ：所属する配属先オブジェクト(DeptInfo)
+  # reqCapaMin     ：資格所有者最少定員
+  # reqCapaRate    ：資格所有者定員充足率
+  # qualReqRate    ：必要資格毎配属希望率
+  # staffList      ：配属職員一覧（StaffInfo の配列 []）
+  #***********************************************************************
+  def __init__(self, dayId, deptId, qualId, reqCapaMin):
+    self.dayId = dayId
+    self.deptId = deptId
+    self.qualId = qualId
+    self.parentObj = None
+    self.reqCapaMin = reqCapaMin
+    self.reqCapaRate = 0.0
+    self.qualReqRate = 0.0
+    self.staffList = []
+
+  #=======================================================================
+  # QualInfo クラス : printObj
+  # QualInfo インスタンスの内容を印字する（改行しない）
+  #-----------------------------------------------------------------------
+  # 引数：なし
+  #-----------------------------------------------------------------------
+  # 戻り値：なし
+  #=======================================================================
+  def printObj(self):
+    print("{0}: 最少定員={1}名、資格定員充足率=".format(
+      ConvDeptQualIdToName(self.qualId), self.reqCapaMin), end="")
+
+    # 定員充足率
+    if ( self.reqCapaMin <= 0 ):
+      print("---", end="")
+    else:
+      print("{0:.2f}".format(self.reqCapaRate), end="")
+
+    # 必要資格毎配属希望率
+    print("、必要資格毎配属希望率={0:.2f}".format(self.qualReqRate), end="")
+
+    # 配属職員一覧
+    if len(self.staffList) > 0:
+      print(" 配属職員=(", end="")
+      for s in self.staffList:
+        print("({0}:{1}) ".format(s.staffId, s.staffName), end="")
+      print(") ", end="")
+
+  #=======================================================================
+  # QualInfo クラス : setParent
+  # 所属する配属先オブジェクト(DeptInfo)を設定する。
+  #-----------------------------------------------------------------------
+  # 引数：
+  # parentObj  ：所属する配属先オブジェクト(DeptInfo)
+  #-----------------------------------------------------------------------
+  # 戻り値：なし
+  #=======================================================================
+  def setParent(self, parentObj):
+    self.parentObj = parentObj
+
+
+#*************************************************************************
+# クラス     DeptInfo
+#-------------------------------------------------------------------------
+# 配属先情報のクラス
+#-------------------------------------------------------------------------
+#
+#*************************************************************************
+class DeptInfo:
+
+  #=======================================================================
+  # DeptInfo クラス : コンストラクタ
+  #-----------------------------------------------------------------------
+  # 以下のインスタンス変数を定義し、指定値で初期化する：
+  #
+  # dayId        ：(PK) 曜日ID（DAY_*）
+  # deptId       ：(PK) 配属先ID (DEPT_ID_*)
+  # ocupyDays    ：配属先の一勤務当たりの勤務日数
+  # capaMin      ：配属先最少定員
+  # deptReqRate  ：配属先毎配属希望率
+  # fillRate     ：定員充足率
+  # qualInfoList ：必要資格順（QualInfo インスタンスを優先順に並べた配列 []）
+  #=======================================================================
+  def __init__(self, dayId, deptId, ocupyDays, capaMin, qualInfoList):
+    self.dayId = dayId
+    self.deptId = deptId
+    self.ocupyDays = ocupyDays
+    self.capaMin = capaMin
+    self.deptReqRate = 0.0
+    self.fillRate = 0.0
+    self.qualInfoList = qualInfoList
+    for aDeptQual in self.qualInfoList :
+      aDeptQual.setParent( self )
+
+  #=======================================================================
+  # DeptInfo クラス : printObj
+  # DeptInfo インスタンスの内容を印字する（改行する）
+  #-----------------------------------------------------------------------
+  # 引数：なし
+  #-----------------------------------------------------------------------
+  # 戻り値：なし
+  #=======================================================================
+  def printObj(self):
+    print("({0}: {1} {2}): 勤務日数={3}日, 最少定員={4}名, 配属先毎配属希望率={5:.2f}, 定員充足率={6:.2f}, ".format(
+      ConvDayIdToName(self.dayId), self.deptId, ConvDeptIdToName(self.deptId),
+      self.ocupyDays, self.capaMin, self.deptReqRate, self.fillRate), end="")
+
+    # 必要資格順
+    idx = 0
+    for qi in self.qualInfoList:
+      if ( idx == 0 ) :
+        print("必要資格=(", end="")
+      else:
+        print(" ／ ", end="")
+      qi.printObj()
+      idx = idx + 1
+    print(") ")
+
+
+#*************************************************************************
+# クラス     DayAsign
+#-------------------------------------------------------------------------
+# 曜日ごとの配属情報のクラス
+#-------------------------------------------------------------------------
+#
+#*************************************************************************
+class DayAsign:
+
+  #=======================================================================
+  # DayAsign クラス : コンストラクタ
+  #-----------------------------------------------------------------------
+  # 以下のインスタンス変数を定義し、指定値で初期化する：
+  #
+  # dayId        ：(PK) 曜日ID（DAY_*）
+  # deptInfoList ：当該曜日の配属先情報の配列 (DeptInfo の配列 [])
+  #=======================================================================
+  def __init__(self, dayId, deptInfoList):
+    self.dayId = dayId
+    self.deptInfoList = deptInfoList
+
+  #=======================================================================
+  # DayAsign クラス : printObj
+  # DayAsign インスタンスの内容を印字する（改行する）
+  #-----------------------------------------------------------------------
+  # 引数：なし
+  #-----------------------------------------------------------------------
+  # 戻り値：なし
+  #=======================================================================
+  def printObj(self):
+    print("{0}: ".format(ConvDayIdToName(self.dayId)))
+
+    # 配属先情報
+    for aDept in self.deptInfoList:
+      print("　", end="")
+      aDept.printObj()
+
+

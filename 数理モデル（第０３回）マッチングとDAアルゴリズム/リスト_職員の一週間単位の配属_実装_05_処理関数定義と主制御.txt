@@ -1,0 +1,371 @@
+#*************************************************************************
+# ﾘｽﾄ_職員の一週間単位の配属 (part05)
+#-------------------------------------------------------------------------
+# 処理関数定義と主制御
+#
+#*************************************************************************
+
+#*************************************************************************
+# メソッド : Process1st
+# 主制御（１）
+#   ファイルロード・初期化処理。
+#-------------------------------------------------------------------------
+#   配属先の「配属計画表」と職員の「配属先希望表」をロードして、
+#   各種の初期化を行う。
+#-------------------------------------------------------------------------
+# 引数：なし
+#-------------------------------------------------------------------------
+# 戻り値：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#*************************************************************************
+def Process1st() :
+
+  # 配属先の「配属計画表」をロードして、配属先情報を初期化する
+  dayAsignList = LoadDayAsignList("dummy")
+
+  # 職員の「配属先希望表」をロードして、職員情報を初期化する。
+  staffInfoList = LoadStaffInfoList("dummy")
+
+  # 職員情報で配属先情報を設定する
+  SetDeptInfoWithStaffInfo( dayAsignList, staffInfoList )
+
+  return dayAsignList, staffInfoList
+
+
+#*************************************************************************
+# メソッド : Process2nd
+# 主制御（２）
+#   曜日・配属先・必要資格毎の最少定員の確保
+#-------------------------------------------------------------------------
+#   各曜日の各配属先の必要資格毎の定員について、
+#   最少定員に充ちるように配員を行う。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def Process2nd(dayAsignList, staffInfoList) :
+
+  # 配属先の必要資格について「必要資格毎配属希望率」が低い順に並べ替えた配列を取得
+  deptQualList = ExtractReqOrderDeptQualList( dayAsignList )
+
+  # 「必要資格毎配属希望率」が低い順に必要資格毎の繰り返し
+  for aDeptQual in deptQualList: #⇒「必要資格Ｙ」
+    dayId = aDeptQual.dayId      #⇒「曜日Ｗ」
+    deptId = aDeptQual.deptId    #⇒「配属先Ｘ」
+    ocupyDays = aDeptQual.parentObj.ocupyDays
+
+    # Debug Start ==========================
+    # print("({0}: {1} {2}): ".format(ConvDayIdToName(dayId), deptId, ConvDeptIdToName(deptId)), end="")
+    # aDeptQual.printObj()
+    # print("")
+    # Debug End --==========================
+
+    #「必要資格Ｙ」についての最少定員割当が済んでいる場合は、次の「必要資格」へ
+    asgnCnt = len( aDeptQual.staffList )
+    if aDeptQual.reqCapaMin <= asgnCnt :
+      continue
+
+    #「必要資格Ｙ」についての最少定員割当を充たす配属をする
+    while (aDeptQual.reqCapaMin > asgnCnt) :
+
+      # 職員の「配属先希望表」をみて、条件を満たす職員「職員Ｐ」を探し出し、
+      #「曜日Ｗ」の「配属先Ｘ」の「必要資格Ｙ」の職員として登録
+      bestStaff = ExtractBestStaff(staffInfoList, dayId, deptId, ocupyDays, aDeptQual.qualId )
+      if (bestStaff != None) :
+
+        # 職員の「曜日毎配属表」に登録
+        RegistStaffAsgnDayList( bestStaff, aDeptQual.parentObj )
+
+        # 配属先の「配属職員一覧」に登録
+        RegistStaffToDeptStaffList( bestStaff, aDeptQual.parentObj )
+
+        # 職員の「勤務日充足率」「希望達成率」を更新
+        UpdateStaffRate( bestStaff )
+
+        # 配属先の「定員充足率」と必要資格毎の「資格所有者定員充足率」を更新
+        UpdateDeptFillRate( aDeptQual.parentObj )
+
+        #「必要資格Ｙ」についての配員済みの人数
+        asgnCnt = asgnCnt + 1
+
+      # 条件に該当する「職員Ｐ」が見つからない場合は、次の「必要資格」へ
+      else:
+        break
+
+
+#*************************************************************************
+# メソッド : Process3rd
+# 主制御（３）
+#   曜日・配属先毎の、必要資格とは無関係な最少定員の確保
+#-------------------------------------------------------------------------
+#   各曜日の各配属先の定員について、必要資格とは無関係に、
+#   最少定員に充ちるように配員を行う。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def Process3rd(dayAsignList, staffInfoList) :
+
+  # 配属先について「配属先毎配属希望率」が低い順に並べ替えた配列を取得
+  deptList = ExtractReqOrderDeptList( dayAsignList )
+
+  #「配属先毎配属希望率」が低い順に配属先毎の繰り返し
+  for aDept in deptList:  # ⇒「配属先Ｘ」
+    dayId = aDept.dayId   # ⇒「曜日Ｗ」
+    deptId = aDept.deptId
+
+    # Debug Start ==========================
+    # aDept.printObj()
+    # Debug End --==========================
+
+    #「配属先Ｘ」の配員済みの人数
+    asgnCnt = 0
+    for aDeptQual in aDept.qualInfoList:
+      asgnCnt = asgnCnt + len(aDeptQual.staffList)
+
+    #「配属先Ｘ」の最少定員割当を充たす配属をする
+    while (aDept.capaMin > asgnCnt) :
+
+      # 職員の「配属先希望表」をみて、条件を満たす職員「職員Ｐ」を探し出し、
+      #「曜日Ｗ」の「配属先Ｘ」の職員として登録
+      bestStaff = ExtractBestStaff(staffInfoList, dayId, deptId, aDept.ocupyDays, None)
+
+      if (bestStaff != None) :
+
+        # Debug Start ==========================
+        # bestStaff.printObj()
+        # Debug End --==========================
+
+        # 職員の「曜日毎配属表」に登録
+        RegistStaffAsgnDayList( bestStaff, aDept )
+
+        # 配属先の「配属職員一覧」に登録
+        RegistStaffToDeptStaffList( bestStaff, aDept )
+
+        # 職員の「勤務日充足率」「希望達成率」を更新
+        UpdateStaffRate( bestStaff )
+
+        # 配属先の「定員充足率」と必要資格毎の「資格所有者定員充足率」を更新
+        UpdateDeptFillRate( aDept )
+
+        #「配属先Ｘ」の配員済みの人数
+        asgnCnt = asgnCnt + 1
+
+      # 条件に該当する「職員Ｐ」が見つからない時、調整終了
+      else:
+        break
+
+
+#*************************************************************************
+# メソッド : Process4th
+# 主制御（４）
+#   各職員の週の勤務日数調整
+#-------------------------------------------------------------------------
+#   各職員の「週の勤務日数」が満ち、かつ、
+#   配属先の偏りが少なくなるように配員を行う。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def Process4th( dayAsignList, staffInfoList ) :
+
+  # 全ての職員について繰り返し
+  for aStaff in staffInfoList:
+
+    # Debug Start ==========================
+    # aStaff.printObj()
+    # Debug End --==========================
+
+    # 配属希望先が無ければ、次の職員へ
+    if (len(aStaff.reqDeptList) <= 0):
+      continue
+
+    # 配属済み日数が「週の勤務日数」に達していたら、次の職員へ
+    asgnDayTotal = len(aStaff.asgnDayList)  \
+      - aStaff.asgnDayList.count(DEPT_ID_0) \
+      - aStaff.asgnDayList.count(DEPT_ID_X)
+    if (asgnDayTotal >= aStaff.workDayAWeek):
+      continue
+
+    # 配属先について「定員充足率」が低い順に並べ替えた配列を取得
+    deptList = ExtractFillOrderDeptList( dayAsignList )
+
+    # 配属先の「定員充足率」が低い順に配属を調整する
+    for aDept in deptList:
+
+      # Debug Start ==========================
+      # aDept.printObj()
+      # Debug End --==========================
+
+      dayId = aDept.dayId
+      deptId = aDept.deptId
+      ocupyDays = aDept.ocupyDays
+
+      # 配属条件を満たす職員か
+      if ( IsAvailableStaff( aStaff, dayId, deptId, ocupyDays, None ) == False ):
+        continue
+
+      # 職員の「曜日毎配属表」に登録
+      RegistStaffAsgnDayList( aStaff, aDept )
+
+      # 配属先の「配属職員一覧」に登録
+      RegistStaffToDeptStaffList( aStaff, aDept )
+
+      # 職員の「勤務日充足率」「希望達成率」を更新
+      UpdateStaffRate( aStaff )
+
+      # 配属先の「定員充足率」と必要資格毎の「資格所有者定員充足率」を更新
+      UpdateDeptFillRate( aDept )
+
+      # 配属済み日数を更新し、「週の勤務日数」に達していたら次の職員へ
+      asgnDayTotal += ocupyDays
+      if (asgnDayTotal > aStaff.workDayAWeek):
+        break
+
+
+#*************************************************************************
+# メソッド : Process5th
+# 主制御（５）
+#   全ての職員について「勤務日充足率」をチェックする。
+#   全ての配属先について「定員充足率」をチェックする。
+#   もし各充足率が 100% 未満の場合、その旨を出力する。
+#-------------------------------------------------------------------------
+# 引数：
+#   dayAsignList ：「曜日ごとの配属情報」オブジェクト配列（配列要素は DayAsign）
+#   staffInfoList：「職員情報」オブジェクト配列（配列要素は StaffInfo）
+#-------------------------------------------------------------------------
+# 戻り値：なし
+#*************************************************************************
+def Process5th( dayAsignList, staffInfoList ) :
+
+  #-----------------------------------------------------------------------
+  # 全ての職員についてチェック
+  #-----------------------------------------------------------------------
+  print("=================================================")
+  print("= 全ての職員について「勤務日充足率」をチェック")
+  print("=================================================")
+  printLine = 0
+
+  for aStaff in staffInfoList:
+
+    #「配属先希望順」に登録が無ければ、次の職員へ
+    if (len(aStaff.reqDeptList) <= 0) :
+      continue
+
+    #「週の勤務日数」が０ならば、次の職員へ
+    if (aStaff.workDayAWeek <= 0) :
+      continue
+
+    #「勤務日充足率」が 100%未満ならば、メッセージ出力
+    if (aStaff.dayFillRate < 1.0) :
+      printLine = printLine + 1
+      if ( printLine == 1 ) :
+        print("以下の職員は、希望した勤務日数に達していません：")
+
+      aStaff.printObj()
+
+  #「勤務日充足率」が全て 100% ならば、メッセージ出力
+  if ( printLine <= 0 ) :
+    print("全ての職員は、希望した勤務日数の配員になっています。")
+
+  #-----------------------------------------------------------------------
+  # 全ての配属先についてチェック
+  #-----------------------------------------------------------------------
+  print("")  # 改行
+  print("=================================================")
+  print("= 全ての配属先について「定員充足率」をチェック")
+  print("=================================================")
+  printLine = 0
+
+  # 曜日毎の繰り返し⇒「曜日Ｗ」
+  for aDayAsgn in dayAsignList:
+    dayId = aDayAsgn.dayId
+
+    # 配属先毎の繰り返し⇒「配属先Ｘ」
+    for aDept in aDayAsgn.deptInfoList :
+      deptId = aDept.deptId
+
+      #「必要資格順」に登録が無ければ、次の職員へ
+      if (len(aDept.qualInfoList) <= 0) :
+        continue
+
+      #「配属先最少定員」が０以下ならば、次の配属先へ
+      if (aDept.capaMin <= 0) :
+        continue
+
+      #「定員充足率」が 100%未満ならば、メッセージ出力
+      if (aDept.fillRate < 1.0) :
+        printLine = printLine + 1
+        if ( printLine == 1 ) :
+          print("以下の配属先は、最少定員に達していません：")
+
+        aDept.printObj()
+
+  #「定員充足率」が全て 100% ならば、メッセージ出力
+  if ( printLine <= 0 ) :
+    print("全ての配属先は、最少定員に達しています。")
+
+
+#*************************************************************************
+#
+# 主制御
+#
+#*************************************************************************
+
+print("*************************************************")
+print("* 1st) 主制御（１）ファイルロード・初期化処理")
+print("*************************************************")
+dayAsignList, staffInfoList = Process1st()
+
+# 「配属予定表」と「曜日毎配属表」の出力
+PrintDayAsignList(dayAsignList)
+PrintStaffInfoList(staffInfoList)
+
+print("")
+print("*************************************************")
+print("* 2nd) 曜日・配属先・必要資格毎の最少定員の確保")
+print("*************************************************")
+Process2nd(dayAsignList, staffInfoList)
+
+# 「配属予定表」と「曜日毎配属表」の出力
+PrintDayAsignList(dayAsignList)
+PrintStaffInfoList(staffInfoList)
+
+print("")
+print("*************************************************")
+print("* 3rd) 曜日・配属先毎の最少定員の確保")
+print("*************************************************")
+Process3rd(dayAsignList, staffInfoList)
+
+# 「配属予定表」と「曜日毎配属表」の出力
+PrintDayAsignList(dayAsignList)
+PrintStaffInfoList(staffInfoList)
+
+print("")
+print("*************************************************")
+print("* 4th) 各職員の週の勤務日数調整")
+print("*************************************************")
+Process4th(dayAsignList, staffInfoList)
+
+# 「配属予定表」と「曜日毎配属表」の出力
+PrintDayAsignList(dayAsignList)
+PrintStaffInfoList(staffInfoList)
+
+print("")
+print("*************************************************")
+print("* 5th) 全ての職員について「勤務日充足率」をチェック")
+print("*      全ての配属先について「定員充足率」をチェック")
+print("*      もし各充足率が 100% 未満の場合、その旨を出力する。")
+print("*************************************************")
+Process5th(dayAsignList, staffInfoList)
+

@@ -1,0 +1,122 @@
+#************************************************************************
+# 賭け事_ﾘｽﾄ_5_試行回数N、成功割合p、掛け率bの時の最終所持金y(N,p,b)
+#************************************************************************
+import numpy as np
+import math
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+%matplotlib inline
+
+#========================================================================
+# 対数正規分布関数 (y(0),N,p,b を指定)
+#========================================================================
+def getLambdaList(xlist, y0, xN, p, b):
+
+    # ln(y)が従う正規分布Ｎ(μ',σ')を算出
+    alpha = np.log((1.0 + b) / (1.0 - b))
+    beta = np.log(y0) + xN * np.log(1.0 - b)
+    mu = xN * p
+    sigma = np.sqrt(xN * p * (1.0 - p))
+    mudash = beta + alpha * mu
+    sigmadash = alpha * sigma
+
+    # yが従う対数正規分布Λ(μ',σ')を算出
+    pynList = []
+    ynList = []
+    ynMax = 0.0
+    pi2root= np.sqrt(2 * np.pi)
+
+    for x in xlist:
+        yn = y0 * ((1.0 + b)**x) * ((1.0 - b)**(xN- x))
+        ynList.append(yn)
+        if( ynMax < yn ):
+            ynMax = yn
+
+        lnyn = np.log(yn)
+        if lnyn <= 0:
+            pynList.append(0.0)
+        else:
+            pynList.append(
+                1 / (pi2root * sigmadash * yn)\
+                * np.exp(-(lnyn - mudash)**2 / (2 * sigmadash**2)) )
+    return pynList, ynList, ynMax, mudash, sigmadash
+
+#========================================================================
+# N回試行時のy(n)の分布関数 (y(0),N,b を指定)
+#========================================================================
+def showDistribution(xList, y0, xN, b):
+    # 初期の所持金のグラフ
+    ynList0 = [y0, y0]
+    pynList0 = [0.0, 1.0]
+    label0 = "y(0)={0}".format(y0)
+
+    # p1
+    p1 = 0.4
+    pynList1,ynList1,ynMax1,mudash1,sigmadash1 = getLambdaList(xList, y0, xN, p1, b)
+    label1 = "p={0},mu'={1:4.4},sigma'={2:4.4}".format(p1, mudash1,sigmadash1)
+
+    # p2
+    p2 = 0.5
+    pynList2,ynList2,ynMax2,mudash2,sigmadash2 = getLambdaList(xList, y0, xN, p2, b)
+    label2 = "p={0},mu'={1:4.4},sigma'={2:4.4}".format(p2, mudash2,sigmadash2)
+
+    # p3
+    p3 = 0.6
+    pynList3,ynList3,ynMax3,mudash3,sigmadash3 = getLambdaList(xList, y0, xN, p3, b)
+    label3 = "p={0},mu'={1:4.4},sigma'={2:4.4}".format(p3, mudash3,sigmadash3)
+
+    # y(n)の最大値とﾊﾟﾗﾒｰﾀを表示
+    ynMax = ynMax1
+    if( ynMax < ynMax2 ):
+        ynMax = ynMax2
+    if( ynMax < ynMax3 ):
+        ynMax = ynMax3
+    rangeY = y0*3
+
+    # 文言表示
+    print( 'Probability of y(N,p,b) (y(0)={0},N={1},b={2:3.3})'.format(y0, xN, b))
+    print( "max(y(n))={0}".format(ynMax))
+
+    # グラフ描画
+    xlabel = '$y$'
+    ylabel = '$P(y)$'
+    title = 'Probability of y(N,p,b) (y(0)={0},N={1},b={2:3.3})'.format(y0, xN, b)
+
+    plt.figure(figsize=(8,4))
+    plt.plot( ynList0, pynList0, color='cyan', linestyle='dotted', linewidth=1, label=label0 )
+    plt.plot( ynList1, pynList1, color='green', linestyle='dashed', linewidth=2, label=label1 )
+    plt.plot( ynList2, pynList2, color='blue', linestyle='dashdot', linewidth=2, label=label2 )
+    plt.plot( ynList3, pynList3, color='red', linestyle='solid', linewidth=2, label=label3 )
+
+    plt.title(title)
+    plt.legend(loc='upper right')
+    plt.xlim(-5, rangeY)
+    plt.ylim(-0.00, 0.0005)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.grid(True)
+    plt.show()
+
+#========================================================================
+# パラメータに応じた分布計算
+#========================================================================
+y0 = 10000   # 初期の所持金
+xN = 60      # 賭け回数
+xList = []
+for x in range(xN+1):
+    xList.append(x)
+
+b = 0.05 # 賭け金の所持金に対する割合
+showDistribution(xList, y0, xN, b)
+
+b = 0.1 # 賭け金の所持金に対する割合
+showDistribution(xList, y0, xN, b)
+
+b = 0.2 # 賭け金の所持金に対する割合
+showDistribution(xList, y0, xN, b)
+
+b = 0.3 # 賭け金の所持金に対する割合
+showDistribution(xList, y0, xN, b)
+
+b = 0.5 # 賭け金の所持金に対する割合
+showDistribution(xList, y0, xN, b)

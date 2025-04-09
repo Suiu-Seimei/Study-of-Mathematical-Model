@@ -1,0 +1,59 @@
+#*************************************************
+# 賭け事_ﾘｽﾄ_1_所持金の分布関数
+#*************************************************
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+%matplotlib inline
+
+# 所持金の分布関数
+# 0 ≦ y0
+# 1 ≦ X  ≦ n
+# 0 ≦ b  ≦ 1
+def f_GetShojikin(y0, b, n, xlist):
+    ylist = []
+    for x in xlist:
+        y = y0 * (1.0 + b)**x * (1.0 - b)**(n - x)
+        ylist.append( y )
+    return ylist
+
+# データとグリッド
+y0 = 1000   # 初期の所持金
+xn = 60     # 賭け回数
+xlist = []
+ylist0 = []
+for ii in range(xn+1):
+    xlist.append(ii)
+    ylist0.append(y0)
+
+# 所持金の分布
+label0 = 'y0={0}'.format(y0)
+
+b1 = 0.05      # 賭け金のその時点の所持金に対する割合
+label1 = 'b={0}'.format(b1)
+ylist1 = f_GetShojikin(y0, b1, xn, xlist)
+
+b2 = 0.1       # 賭け金のその時点の所持金に対する割合
+label2 = 'b={0}'.format(b2)
+ylist2 = f_GetShojikin(y0, b2, xn, xlist)
+
+b3 = 0.2       # 賭け金のその時点の所持金に対する割合
+label3 = 'b={0}'.format(b3)
+ylist3 = f_GetShojikin(y0, b3, xn, xlist)
+
+# グラフ描画
+xlabel = '$x (success/{0})$'.format(xn)
+ylabel = '$y(x)$'
+
+plt.figure(figsize=(8,4))
+plt.plot( xlist, ylist0, 'k:', linewidth=1, label=label0 )
+plt.plot( xlist, ylist1, 'r:', linewidth=2, label=label1 )
+plt.plot( xlist, ylist2, 'b:', linewidth=2, label=label2 )
+plt.plot( xlist, ylist3, 'g-.', linewidth=2, label=label3 )
+plt.legend(loc='upper left')
+plt.ylim(-0.1, y0*10)
+plt.xlim(-0.5, xn)
+plt.xlabel(xlabel)
+plt.ylabel(ylabel)
+plt.grid(True)
+plt.show()
